@@ -1,20 +1,27 @@
-import React, { useState } from 'react';
-import { Button } from './components/ui/button';
+import { useState } from "react";
+import Main from "./pages/Main";
+import MainLayout from "./components/main-layout";
+import Login from "./pages/Login";
+import { Toaster } from "./components/ui/toaster";
 
 function App() {
-    const [msg, setMsg] = useState('');
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-    const upload = async () => {
-        const response = await (window as any).electronAPI.uploadFile('C:/Users/esker/Desktop/test.txt');
-        setMsg(response);
+    const handleLogin = (username: string, password: string) => {
+        setIsLoggedIn(true);
     };
 
     return (
-        <div>
-            <h1>Electron + React + TS</h1>
-            <Button onClick={upload}>Upload File</Button>
-            <p>{msg}</p>
-        </div>
+        <>
+            {isLoggedIn ? (
+                <MainLayout>
+                    <Main />
+                </MainLayout>
+            ) : (
+                <Login onLogin={handleLogin} />
+            )}
+            <Toaster />
+        </>
     );
 }
 
