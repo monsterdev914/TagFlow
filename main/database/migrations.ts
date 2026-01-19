@@ -95,6 +95,32 @@ export async function runMigrations(pool: mysql.Pool): Promise<void> {
       (2, 'user', 'user')
     `);
     console.log('Default users ensured');
+
+    // Create PrintingHistory table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS PrintingHistory (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        ItemId INT NOT NULL,
+        ItemCode VARCHAR(50) NOT NULL,
+        ItemDescription VARCHAR(500),
+        ProductionLineId INT,
+        ProductionLineName VARCHAR(100),
+        Quantity INT NOT NULL,
+        EpcsGenerated INT NOT NULL,
+        PrinterIP VARCHAR(50),
+        PrinterPort INT,
+        PrinterName VARCHAR(100),
+        Status VARCHAR(50) NOT NULL DEFAULT 'success',
+        ErrorMessage TEXT,
+        CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (ItemId) REFERENCES ItemMaster(Id) ON DELETE CASCADE,
+        FOREIGN KEY (ProductionLineId) REFERENCES ProductionLines(Id) ON DELETE SET NULL,
+        INDEX idx_item_id (ItemId),
+        INDEX idx_production_line_id (ProductionLineId),
+        INDEX idx_created_at (CreatedAt)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log('PrintingHistory table migration completed');
   } finally {
     connection.release();
   }

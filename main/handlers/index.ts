@@ -10,12 +10,14 @@ import { ensureDatabaseExists, runMigrations } from '../database/migrations';
 import { UserRepository } from '../repositories/user.repository';
 import { ItemRepository } from '../repositories/item.repository';
 import { ProductionLineRepository } from '../repositories/production-line.repository';
+import { PrintingHistoryRepository } from '../repositories/printing-history.repository';
 
 // Services
 import { AuthService } from '../services/auth.service';
 import { ItemService } from '../services/item.service';
 import { ProductionLineService } from '../services/production-line.service';
 import { PrintingService } from '../services/printing.service';
+import { PrintingHistoryService } from '../services/printing-history.service';
 import { DatabaseService } from '../services/database.service';
 
 // Handlers
@@ -39,12 +41,14 @@ export async function setupIpcHandlers(): Promise<void> {
   const userRepository = new UserRepository();
   const itemRepository = new ItemRepository();
   const productionLineRepository = new ProductionLineRepository();
+  const printingHistoryRepository = new PrintingHistoryRepository();
 
   // Initialize services
   const authService = new AuthService(userRepository);
   const itemService = new ItemService(itemRepository);
   const productionLineService = new ProductionLineService(productionLineRepository);
-  const printingService = new PrintingService(itemRepository);
+  const printingService = new PrintingService(itemRepository, printingHistoryRepository);
+  const printingHistoryService = new PrintingHistoryService(printingHistoryRepository);
   const databaseService = new DatabaseService();
 
   // Setup handlers
@@ -52,6 +56,6 @@ export async function setupIpcHandlers(): Promise<void> {
   setupDatabaseHandlers(databaseService);
   setupItemHandlers(itemService);
   setupProductionLineHandlers(productionLineService);
-  setupPrintingHandlers(printingService);
+  setupPrintingHandlers(printingService, printingHistoryService);
   setupAppHandlers();
 }

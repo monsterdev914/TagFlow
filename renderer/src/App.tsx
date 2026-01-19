@@ -7,6 +7,8 @@ import { Toaster } from "./components/ui/toaster";
 import ProductionLines from "./pages/ProductionLines";
 import Items from "./pages/Items";
 import SplashScreen from "./components/SplashScreen";
+import Setting from "./pages/Setting";
+import PrintHistory from "./pages/PrintHistory";
 
 function App() {
     const [isInitializing, setIsInitializing] = useState(true);
@@ -51,6 +53,8 @@ function App() {
                     <Route path="/main" element={<Main />} />
                     <Route path="/production-lines" element={<ProductionLines />} />
                     <Route path="/items" element={<Items />} />
+                    <Route path="/setting" element={<Setting />} />
+                    <Route path="/print-history" element={<PrintHistory />} />
                 </Route>
                 <Route path="/" element={<Navigate to="/login" replace />} />
             </Routes>

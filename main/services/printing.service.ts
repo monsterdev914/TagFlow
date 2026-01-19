@@ -4,6 +4,7 @@
  */
 
 import { ItemRepository } from '../repositories/item.repository';
+import { PrintingHistoryRepository, CreatePrintingHistoryData } from '../repositories/printing-history.repository';
 import { generateEPCs } from '../../shared/epcGenerator';
 import { generateZPL, sendToPrinter, type PrintJob } from '../../shared/printer';
 import { PrintParams, PrintResult } from '../types';
@@ -11,9 +12,11 @@ import { ValidationError } from '../utils/errors';
 
 export class PrintingService {
   private itemRepository: ItemRepository;
+  private printingHistoryRepository: PrintingHistoryRepository;
 
-  constructor(itemRepository: ItemRepository) {
+  constructor(itemRepository: ItemRepository, printingHistoryRepository: PrintingHistoryRepository) {
     this.itemRepository = itemRepository;
+    this.printingHistoryRepository = printingHistoryRepository;
   }
 
   /**
@@ -31,6 +34,7 @@ export class PrintingService {
 
     // Step 1: Validate all items and collect their data
     const itemData: Array<{
+      itemId: number;
       item: {
         code: string;
         description: string;
@@ -50,6 +54,7 @@ export class PrintingService {
       }
 
       itemData.push({
+        itemId,
         item: {
           code: itemResult.item.code,
           description: itemResult.item.description,
@@ -104,19 +109,81 @@ export class PrintingService {
     const printResult = await sendToPrinter(combinedZPL, printerConfig);
 
     if (!printResult.success) {
+      // Record failed print attempt
+      for (const { itemId, item, quantity } of itemData) {
+        await this.printingHistoryRepository.create({
+          itemId,
+          itemCode: item.code,
+          itemDescription: item.description,
+          productionLineId: item.productionLineId,
+          productionLineName: item.productionLineName,
+          quantity,
+          epcsGenerated: 0,
+          printerIP: printerConfig.printerIP || null,
+          printerPort: printerConfig.printerPort || null,
+          printerName: printerConfig.printerName || null,
+          status: 'failed',
+          errorMessage: printResult.error || 'Failed to send to printer',
+        });
+      }
       return {
         success: false,
         error: printResult.error || 'Failed to send to printer',
       };
     }
+
     // Send data to API
     const apiResult = await this.sendApi(combinedZPL, itemData[0].item.code, '', itemData[0].item.productionLineName);
     if (!apiResult.success) {
+      // Record failed API call
+      for (const { itemId, item, quantity } of itemData) {
+        await this.printingHistoryRepository.create({
+          itemId,
+          itemCode: item.code,
+          itemDescription: item.description,
+          productionLineId: item.productionLineId,
+          productionLineName: item.productionLineName,
+          quantity,
+          epcsGenerated: totalEPCs,
+          printerIP: printerConfig.printerIP || null,
+          printerPort: printerConfig.printerPort || null,
+          printerName: printerConfig.printerName || null,
+          status: 'partial',
+          errorMessage: apiResult.error || 'Failed to send data to API',
+        });
+      }
       return {
         success: false,
         error: apiResult.error || 'Failed to send data to API',
       };
     }
+
+    // Record successful print history for each item
+    for (const { itemId, item, quantity } of itemData) {
+      // Calculate EPCs for this specific item
+      const itemEpcs = generateEPCs({
+        itemNumber: item.code,
+        quantity,
+        companyPrefix: process.env.COMPANY_PREFIX || '000000000000',
+        serialStart: 1,
+      });
+
+      await this.printingHistoryRepository.create({
+        itemId,
+        itemCode: item.code,
+        itemDescription: item.description,
+        productionLineId: item.productionLineId,
+        productionLineName: item.productionLineName,
+        quantity,
+        epcsGenerated: itemEpcs.length,
+        printerIP: printerConfig.printerIP || null,
+        printerPort: printerConfig.printerPort || null,
+        printerName: printerConfig.printerName || null,
+        status: 'success',
+        errorMessage: null,
+      });
+    }
+
     return {
       success: true,
       epcsGenerated: totalEPCs,
@@ -126,7 +193,7 @@ export class PrintingService {
 
   // Send Api
   async sendApi(epc: string, materialNumber: string, batchNumber = '', productionLine: string) {
-    const DOMAIN = "https://your-api-domain.com";
+    const DOMAIN = "https://mtc31a3-api-01.azurewebsites.net";
     const TOKEN = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoicHJpbnRlcjAxQG1ha2FtYXQuY29tIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiVXNlciIsImV4cCI6MTgwMDIxNDk1NX0.zNvh6dt8HWMLBSGz4N3nsTxtj2icAjZBWMVztpspbUg2c9vnO4iy7YnSCdOw_fr_FLOT4Xy654bhAzAlacAwRg"
     const url = `${DOMAIN}/api/ItemInformation/PrinterUpsert`;
     const timestamp = new Date().toISOString();
