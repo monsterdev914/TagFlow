@@ -5,7 +5,7 @@
 
 import { ItemRepository } from '../repositories/item.repository';
 import { PrintingHistoryRepository, CreatePrintingHistoryData } from '../repositories/printing-history.repository';
-import { generateEPCs } from '../../shared/epcGenerator';
+import { GeneratedEPC, generateEPCs } from '../../shared/epcGenerator';
 import { generateZPL, sendToPrinter, type PrintJob } from '../../shared/printer';
 import { PrintParams, PrintResult } from '../types';
 import { ValidationError } from '../utils/errors';
@@ -68,21 +68,31 @@ export class PrintingService {
     // Step 2: Generate EPCs for all items and combine into one ZPL
     let combinedZPL = '';
     let totalEPCs = 0;
+    const allEpcs: Array<{ epc: GeneratedEPC; itemCode: string; productionLine: string }> = [];
 
     for (const { item, quantity } of itemData) {
       // Generate EPCs for this item
-      const epcs = generateEPCs({
+      const itemEpcs = generateEPCs({
         itemNumber: item.code,
         quantity,
         companyPrefix: process.env.COMPANY_PREFIX || '000000000000',
         serialStart: 1,
       });
 
-      totalEPCs += epcs.length;
+      totalEPCs += itemEpcs.length;
+
+      // Store EPCs with their associated item info for API calls
+      itemEpcs.forEach(epc => {
+        allEpcs.push({
+          epc,
+          itemCode: item.code,
+          productionLine: item.productionLineName,
+        });
+      });
 
       // Generate ZPL for this item's labels and append to combined ZPL
       const printJob: PrintJob = {
-        epcs,
+        epcs: itemEpcs,
         itemNumber: item.code,
         itemDescription: item.description,
         productionLine: item.productionLineName,
@@ -132,10 +142,18 @@ export class PrintingService {
       };
     }
 
-    // Send data to API
-    const apiResult = await this.sendApi(combinedZPL, itemData[0].item.code, '', itemData[0].item.productionLineName);
-    if (!apiResult.success) {
-      // Record failed API call
+    // Send data to API for each EPC
+    const apiErrors: string[] = [];
+    for (const { epc, itemCode, productionLine } of allEpcs) {
+      const apiResult = await this.sendApi(epc.epcHex, itemCode, '', productionLine);
+      if (!apiResult.success) {
+        apiErrors.push(`EPC ${epc.epcHex}: ${apiResult.error || 'Failed to send data to API'}`);
+        console.error(`Failed to send EPC ${epc.epcHex} to API:`, apiResult.error);
+      }
+    }
+
+    // If any API calls failed, record as partial success
+    if (apiErrors.length > 0) {
       for (const { itemId, item, quantity } of itemData) {
         await this.printingHistoryRepository.create({
           itemId,
@@ -149,14 +167,15 @@ export class PrintingService {
           printerPort: printerConfig.printerPort || null,
           printerName: printerConfig.printerName || null,
           status: 'partial',
-          errorMessage: apiResult.error || 'Failed to send data to API',
+          errorMessage: `${apiErrors.length} of ${allEpcs.length} EPCs failed to send: ${apiErrors.slice(0, 3).join('; ')}${apiErrors.length > 3 ? '...' : ''}`,
         });
       }
       return {
         success: false,
-        error: apiResult.error || 'Failed to send data to API',
+        error: `Print succeeded but ${apiErrors.length} of ${allEpcs.length} EPCs failed to send to API`,
       };
     }
+
 
     // Record successful print history for each item
     for (const { itemId, item, quantity } of itemData) {
@@ -195,7 +214,7 @@ export class PrintingService {
   async sendApi(epc: string, materialNumber: string, batchNumber = '', productionLine: string) {
     const DOMAIN = "https://mtc31a3-api-01.azurewebsites.net";
     const TOKEN = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoicHJpbnRlcjAxQG1ha2FtYXQuY29tIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiVXNlciIsImV4cCI6MTgwMDIxNDk1NX0.zNvh6dt8HWMLBSGz4N3nsTxtj2icAjZBWMVztpspbUg2c9vnO4iy7YnSCdOw_fr_FLOT4Xy654bhAzAlacAwRg"
-    const url = `${DOMAIN}/api/ItemInformation/PrinterUpsert`;
+    const url = `${DOMAIN}/api/AssetInformation/PrinterUpsert`;
     const timestamp = new Date().toISOString();
     const data = {
       EPC: epc,
