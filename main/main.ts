@@ -34,12 +34,20 @@ function createWindow(): BrowserWindow {
     return win;
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
     // Load configuration first
     loadConfig();
-    // Setup IPC handlers after app is ready
-    setupIpcHandlers();
+
+    // Create main window (will show splash screen during initialization)
     const win = createWindow();
+
+    // Setup IPC handlers after app is ready
+    // The React app will show splash screen while this completes
+    try {
+        await setupIpcHandlers();
+    } catch (error) {
+        console.error('Error during initialization:', error);
+    }
 
     // Register global shortcuts for fullscreen toggle
     globalShortcut.register('F11', () => {

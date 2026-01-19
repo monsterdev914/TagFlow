@@ -25,4 +25,22 @@ export function setupAuthHandlers(authService: AuthService): void {
       return formatError(error);
     }
   });
+
+  // Update username handler
+  ipcMain.handle('update-username', async (event, currentUsername: string, newUsername: string, password: string) => {
+    try {
+      return await authService.updateUsername(currentUsername, newUsername, password);
+    } catch (error) {
+      return formatError(error);
+    }
+  });
+
+  // Update password handler
+  ipcMain.handle('update-password', async (event, username: string, currentPassword: string, newPassword: string) => {
+    try {
+      return await authService.updatePassword(username, currentPassword, newPassword);
+    } catch (error) {
+      return formatError(error);
+    }
+  });
 }

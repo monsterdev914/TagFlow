@@ -35,6 +35,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
             quantity: number;
         }>;
     }): Promise<any> => ipcRenderer.invoke('generate-and-print', params),
+    getPrintingHistory: (filters?: {
+        itemId?: number;
+        productionLineId?: number;
+        startDate?: string;
+        endDate?: string;
+        status?: string;
+        limit?: number;
+        offset?: number;
+    }): Promise<any> => ipcRenderer.invoke('get-printing-history', filters),
     checkDbStatus: (): Promise<{
         connected: boolean;
         mode: 'database';
@@ -44,5 +53,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }> => ipcRenderer.invoke('check-db-status'),
     login: (username: string, password: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('login', username, password),
     logout: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('logout'),
+    updateUsername: (currentUsername: string, newUsername: string, password: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('update-username', currentUsername, newUsername, password),
+    updatePassword: (username: string, currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('update-password', username, currentPassword, newPassword),
     closeApp: (): Promise<void> => ipcRenderer.invoke('close-app'),
 });

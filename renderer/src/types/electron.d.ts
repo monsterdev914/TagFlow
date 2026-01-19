@@ -78,6 +78,35 @@ export interface ElectronAPI {
     message?: string;
     error?: string;
   }>;
+  getPrintingHistory: (filters?: {
+    itemId?: number;
+    productionLineId?: number;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }) => Promise<{
+    success: boolean;
+    records?: Array<{
+      id: number;
+      itemId: number;
+      itemCode: string;
+      itemDescription: string | null;
+      productionLineId: number | null;
+      productionLineName: string | null;
+      quantity: number;
+      epcsGenerated: number;
+      printerIP: string | null;
+      printerPort: number | null;
+      printerName: string | null;
+      status: string;
+      errorMessage: string | null;
+      createdAt: Date;
+    }>;
+    total?: number;
+    error?: string;
+  }>;
   checkDbStatus: () => Promise<{
     connected: boolean;
     mode: 'database';
@@ -90,6 +119,14 @@ export interface ElectronAPI {
     error?: string;
   }>;
   logout: () => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+  updateUsername: (currentUsername: string, newUsername: string, password: string) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+  updatePassword: (username: string, currentPassword: string, newPassword: string) => Promise<{
     success: boolean;
     error?: string;
   }>;

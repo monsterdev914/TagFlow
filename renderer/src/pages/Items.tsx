@@ -3,7 +3,7 @@
  * Manages items with full CRUD operations, pagination, and filtering
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Table,
@@ -65,7 +65,7 @@ const Items: React.FC = () => {
     };
 
     // Fetch items
-    const fetchItems = async () => {
+    const fetchItems = useCallback(async () => {
         if (!window.electronAPI || typeof window.electronAPI.getItems !== 'function') {
             console.warn('Electron API not available. Please restart the application.');
             return;
@@ -110,15 +110,20 @@ const Items: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [filterCode, filterDescription, filterProductionLineIds, toast]);
 
     useEffect(() => {
         fetchProductionLines();
     }, []);
 
+    // Debounce filter changes to avoid losing focus on input
     useEffect(() => {
-        fetchItems();
-    }, [filterCode, filterDescription, filterProductionLineIds]);
+        const timeoutId = setTimeout(() => {
+            fetchItems();
+        }, 300); // Wait 300ms after user stops typing
+
+        return () => clearTimeout(timeoutId);
+    }, [filterCode, filterDescription, filterProductionLineIds, fetchItems]);
 
     // Calculate pagination
     const totalPages = useMemo(() => Math.ceil(items.length / pageSize), [items.length, pageSize]);
