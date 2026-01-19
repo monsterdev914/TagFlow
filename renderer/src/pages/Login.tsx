@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,11 +11,8 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 
-interface LoginProps {
-    onLogin: (username: string, password: string) => void;
-}
-
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
+const Login: React.FC = () => {
+    const navigate = useNavigate();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -36,7 +34,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             }
             const result = await window.electronAPI.login(username, password);
             if (result.success) {
-                onLogin(username, password);
+                navigate('/main', { replace: true });
             } else {
                 setError(result.error || 'Failed to login');
             }

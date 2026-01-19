@@ -193,55 +193,30 @@ const Main = () => {
         setProgress({ current: 0, total: totalLabels });
 
         try {
-            let successCount = 0;
-            let errorCount = 0;
-            let processedLabels = 0;
+            // Update status: Generating EPCs
+            setStatus(`Generating EPCs for ${itemsToPrint.length} item(s)...`);
+            await new Promise(resolve => setTimeout(resolve, 200));
 
-            // Process each selected item
-            for (let i = 0; i < itemsToPrint.length; i++) {
-                const item = itemsToPrint[i];
+            // Update status: Generating combined print job
+            setStatus(`Generating combined print job...`);
+            await new Promise(resolve => setTimeout(resolve, 100));
 
-                // Update status: Validating item
-                setStatus(`Validating item ${i + 1}/${itemsToPrint.length}...`);
-                await new Promise(resolve => setTimeout(resolve, 100));
+            // Generate EPCs and send to printer for all items at once
+            setStatus(`Sending combined print job to printer...`);
 
-                // Update status: Generating EPCs
-                setStatus(`Generating EPCs for ${item.code}...`);
-                await new Promise(resolve => setTimeout(resolve, 200));
+            const result = await window.electronAPI.generateAndPrint({
+                items: itemsToPrint.map(item => ({
+                    itemId: item.id,
+                    quantity: qty,
+                })),
+            });
 
-                // Update status: Generating print job
-                setStatus(`Generating print job for ${item.code}...`);
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                // Generate EPCs and send to printer
-                setStatus(`Sending to printer (${item.productionLine?.name})...`);
-                try {
-                    const result = await window.electronAPI.generateAndPrint({
-                        productionLine: item.productionLine!.id,
-                        itemId: item.id,
-                        quantity: qty,
-                    });
-
-                    if (result.success) {
-                        successCount++;
-                        processedLabels += qty;
-                        setProgress({ current: processedLabels, total: totalLabels });
-                    } else {
-                        errorCount++;
-                        console.error(`Failed to print item ${item.code}:`, result.error);
-                    }
-                } catch (error) {
-                    errorCount++;
-                    console.error(`Error printing item ${item.code}:`, error);
-                }
-            }
-
-            if (errorCount === 0) {
-                setStatus(`Print job complete - ${totalLabels} labels generated and sent to printer`);
+            if (result.success) {
+                setStatus(`Print job complete - ${result.epcsGenerated || totalLabels} labels generated and sent to printer`);
                 setProgress({ current: totalLabels, total: totalLabels });
                 toast({
                     title: 'Success',
-                    description: `Successfully generated and sent ${totalLabels} labels for ${successCount} item(s)`,
+                    description: result.message || `Successfully generated and sent ${result.epcsGenerated || totalLabels} labels for ${itemsToPrint.length} item(s)`,
                 });
 
                 // Reset form after successful submission
@@ -253,10 +228,10 @@ const Main = () => {
                     setIsProcessing(false);
                 }, 3000);
             } else {
-                setStatus(`Partial success - ${successCount} succeeded, ${errorCount} failed`);
+                setStatus(`Print failed: ${result.error || 'Unknown error'}`);
                 toast({
-                    title: 'Partial Success',
-                    description: `${successCount} item(s) printed successfully, ${errorCount} failed`,
+                    title: 'Print Error',
+                    description: result.error || 'Failed to send print job',
                     variant: 'destructive',
                 });
                 setIsProcessing(false);

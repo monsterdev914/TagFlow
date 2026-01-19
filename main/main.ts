@@ -1,6 +1,7 @@
 import { app, BrowserWindow, globalShortcut } from 'electron';
 import path from 'path';
-import { setupIpcHandlers } from './ipcHandlers';
+import { setupIpcHandlers } from './handlers';
+import { loadConfig } from './config';
 
 function createWindow(): BrowserWindow {
     const win = new BrowserWindow({
@@ -24,15 +25,18 @@ function createWindow(): BrowserWindow {
         win.loadURL(startUrl);
     } else {
         // PROD: load built React app
-        win.loadFile(
-            path.join(__dirname, '../../renderer/dist/index.html')
-        );
+        // In packaged app, files are in app.asar
+        // app.getAppPath() returns the app directory (app.asar is treated as a directory)
+        const htmlPath = path.join(app.getAppPath(), 'renderer', 'dist', 'index.html');
+        win.loadFile(htmlPath);
     }
 
     return win;
 }
 
 app.whenReady().then(() => {
+    // Load configuration first
+    loadConfig();
     // Setup IPC handlers after app is ready
     setupIpcHandlers();
     const win = createWindow();

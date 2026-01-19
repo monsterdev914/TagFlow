@@ -88,7 +88,7 @@ const LabelPreview: React.FC<LabelPreviewProps> = ({
                                 {/* Logo positioned on the right */}
                                 <div className="flex-shrink-0 absolute right-0 top-4" style={{ width: '120px', height: '120px' }}>
                                     <img
-                                        src="/logo.png"
+                                        src="./logo.png"
                                         alt="Company Logo"
                                         className="w-full h-full object-contain"
                                         style={{ maxWidth: '100%', maxHeight: '100%' }}

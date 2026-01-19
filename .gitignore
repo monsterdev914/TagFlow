@@ -3,4 +3,5 @@
 /release
 .env
 .env.local
+.env.example
 /renderer/dist

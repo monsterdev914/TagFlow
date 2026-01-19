@@ -133,6 +133,8 @@ export async function sendToPrinter(
       // This is a placeholder implementation
       try {
         const { exec } = require('child_process');
+        const { promisify } = require('util');
+        const execAsync = promisify(exec);
         const fs = require('fs');
         const path = require('path');
         const os = require('os');
@@ -141,19 +143,19 @@ export async function sendToPrinter(
         const tempFile = path.join(os.tmpdir(), `print_${Date.now()}.zpl`);
         fs.writeFileSync(tempFile, zpl, 'utf8');
 
-        // Use Windows copy command to send to printer
-        // This is a basic implementation - may need adjustment
-        exec(`copy /B "${tempFile}" "\\\\${config.printerName}"`, (error: Error | null) => {
+        try {
+          // Use Windows copy command to send to printer
+          // This is a basic implementation - may need adjustment
+          await execAsync(`copy /B "${tempFile}" "\\\\${config.printerName}"`);
           fs.unlinkSync(tempFile);
-          if (error) {
-            return {
-              success: false,
-              error: `Failed to send to Windows printer: ${error.message}`,
-            };
-          }
-        });
-
-        return { success: true };
+          return { success: true };
+        } catch (error) {
+          fs.unlinkSync(tempFile);
+          return {
+            success: false,
+            error: `Failed to send to Windows printer: ${(error as Error).message}`,
+          };
+        }
       } catch (error) {
         return {
           success: false,
@@ -162,19 +164,31 @@ export async function sendToPrinter(
       }
     }
 
-    // Option 3: File output (for testing)
+    // Option 3: File output (for testing/fallback)
     const fs = require('fs');
     const path = require('path');
-    const outputPath = path.join(
-      process.cwd(),
-      `print_job_line_${config.productionLine}_${Date.now()}.zpl`
-    );
-    fs.writeFileSync(outputPath, zpl, 'utf8');
+    const os = require('os');
 
-    return {
-      success: true,
-      error: `Print job saved to file: ${outputPath} (Configure printer IP/port to send directly)`,
-    };
+    // Use temp directory instead of process.cwd() for better compatibility
+    const outputDir = os.tmpdir();
+    const sanitizedProductionLine = config.productionLine.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const outputPath = path.join(
+      outputDir,
+      `print_job_line_${sanitizedProductionLine}_${Date.now()}.zpl`
+    );
+
+    try {
+      fs.writeFileSync(outputPath, zpl, 'utf8');
+      return {
+        success: true,
+        error: `Print job saved to file: ${outputPath} (Configure printer IP/port to send directly)`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to save print job to file: ${(error as Error).message}`,
+      };
+    }
   } catch (error) {
     return {
       success: false,

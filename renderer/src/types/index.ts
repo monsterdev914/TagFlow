@@ -5,7 +5,7 @@ export interface ProductionLineType {
 
 export interface ItemType {
     id: number;
-    productionLine: ProductionLineType;
+    productionLine: ProductionLineType | null;
     code: string;
     description1: string;
     description2: string;

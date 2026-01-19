@@ -10,6 +10,19 @@ export interface ElectronAPI {
     productionLines?: Array<{ id: number; name: string }>;
     error?: string;
   }>;
+  createProductionLine: (name: string) => Promise<{
+    success: boolean;
+    id?: number;
+    error?: string;
+  }>;
+  updateProductionLine: (id: number, name: string) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+  deleteProductionLine: (id: number) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
   getItems: (filters?: {
     code?: string;
     description?: string;
@@ -27,10 +40,38 @@ export interface ElectronAPI {
     }>;
     error?: string;
   }>;
+  createItem: (data: {
+    code: string;
+    description1?: string;
+    description2?: string;
+    unitOfMeasure?: string;
+    identifier?: string;
+    productionLineId?: number | null;
+  }) => Promise<{
+    success: boolean;
+    id?: number;
+    error?: string;
+  }>;
+  updateItem: (id: number, data: {
+    code?: string;
+    description1?: string;
+    description2?: string;
+    unitOfMeasure?: string;
+    identifier?: string;
+    productionLineId?: number | null;
+  }) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+  deleteItem: (id: number) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
   generateAndPrint: (params: {
-    productionLine: number;
-    itemId: number;
-    quantity: number;
+    items: Array<{
+      itemId: number;
+      quantity: number;
+    }>;
   }) => Promise<{
     success: boolean;
     epcsGenerated?: number;
@@ -39,7 +80,7 @@ export interface ElectronAPI {
   }>;
   checkDbStatus: () => Promise<{
     connected: boolean;
-    mode: 'database' | 'mock';
+    mode: 'database';
     error?: string;
     server?: string;
     database?: string;
@@ -52,6 +93,7 @@ export interface ElectronAPI {
     success: boolean;
     error?: string;
   }>;
+  closeApp: () => Promise<void>;
 }
 
 declare global {
